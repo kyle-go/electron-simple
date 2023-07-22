@@ -9,7 +9,7 @@
  * `./src/main.js` using webpack. This gives us some performance wins.
  */
 import path from 'path';
-import { app, BrowserWindow, shell, ipcMain } from 'electron';
+import { app, BrowserWindow, shell, ipcMain, Menu, MenuItem } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
 import MenuBuilder from './menu';
@@ -77,8 +77,8 @@ const createWindow = async () => {
     webPreferences: {
       preload: app.isPackaged
         ? path.join(__dirname, 'preload.js')
-        : path.join(__dirname, '../../.erb/dll/preload.js'),
-    },
+        : path.join(__dirname, '../../.erb/dll/preload.js')
+    }
   });
 
   mainWindow.loadURL(resolveHtmlPath('index.html'));
@@ -96,6 +96,44 @@ const createWindow = async () => {
 
   mainWindow.on('closed', () => {
     mainWindow = null;
+  });
+
+  // 设置拼写检查菜单
+  if (process.platform === 'linux') {
+    mainWindow.webContents.session.setSpellCheckerLanguages(['en-US']);
+  }
+  mainWindow.webContents.on('context-menu', (event, params) => {
+    if (!mainWindow) {
+      return;
+    }
+    const menu = new Menu();
+
+    // 添加每个拼写建议
+    for (let i = 0; i < params.dictionarySuggestions.length; i++) {
+      const suggestion = params.dictionarySuggestions[i];
+      menu.append(
+        new MenuItem({
+          label: suggestion,
+          // eslint-disable-next-line no-loop-func
+          click: () => mainWindow?.webContents.replaceMisspelling(suggestion)
+        })
+      );
+    }
+
+    // 允许用户将拼写错误的单词添加到字典中
+    if (params.misspelledWord) {
+      menu.append(
+        new MenuItem({
+          label: 'Add to dictionary',
+          click: () =>
+            mainWindow?.webContents.session.addWordToSpellCheckerDictionary(
+              params.misspelledWord
+            )
+        })
+      );
+    }
+
+    menu.popup();
   });
 
   const menuBuilder = new MenuBuilder(mainWindow);
