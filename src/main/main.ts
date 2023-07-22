@@ -99,7 +99,7 @@ const createWindow = async () => {
   });
 
   // 设置拼写检查菜单
-  if (process.platform === 'linux') {
+  if (process.platform === 'linux' || process.platform === 'win32') {
     mainWindow.webContents.session.setSpellCheckerLanguages(['en-US']);
   }
   mainWindow.webContents.on('context-menu', (event, params) => {
